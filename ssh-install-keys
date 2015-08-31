@@ -1,0 +1,9 @@
+#!/usr/bin/env python2
+
+import argparse
+
+parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
+parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='Name of the target disk image')
+
+args = parser.parse_args()
+print(args.image)
