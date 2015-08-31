@@ -77,7 +77,7 @@ gfs = guestfs.GuestFS(python_return_dict=True)
 
 gfs.add_drive(args.image)
 gfs.launch()
-gfs.mount("/dev/sda2","/")
+gfs.mount('/dev/sda2','/')
 
 etc_passwd = gfs.cat('/etc/passwd')
 users = parse_etc_passwd(etc_passwd)
