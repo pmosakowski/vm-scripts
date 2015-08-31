@@ -53,6 +53,19 @@ log.addHandler(logging.StreamHandler())
 log.setLevel(args.loglevel)
 log.debug('cwd %s', cwd)
 
+user = os.environ['USER']
+home = os.environ['HOME']
+log.debug('running as user %s', user)
+
+ssh_dir = os.path.join(home, '.ssh')
+log.debug('looking for keys in %s',ssh_dir)
+
+rsa_key = os.path.join(ssh_dir, 'id_rsa.pub')
+dsa_key = os.path.join(ssh_dir, 'id_dsa.pub')
+for key_file in [rsa_key, dsa_key]:
+    if os.path.isfile(key_file):
+        log.info('found public key %s', key_file)
+
 image_path = os.path.normpath(os.path.join(cwd,args.image))
 if not os.path.isfile(image_path):
     log.error('Image %s does not exists, is not accessible or not a regular file', image_path)
