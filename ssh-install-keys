@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import argparse, os, logging
+import guestfs
 
 loglevel = 'warn'
 loglevels = { 'debug' : logging.DEBUG,
@@ -34,3 +35,9 @@ log.addHandler(logging.StreamHandler())
 log.setLevel(args.loglevel)
 log.debug('cwd %s', cwd)
 log.info('Modifying image %s', args.image)
+
+gfs = guestfs.GuestFS(python_return_dict=True)
+
+gfs.add_drive(args.image)
+gfs.launch()
+gfs.mount("/dev/sda2","/")
