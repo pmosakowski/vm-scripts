@@ -7,7 +7,6 @@ from collections import namedtuple
 
 import guestfs
 
-loglevel = 'warn'
 loglevels = { 'debug' : logging.DEBUG,
               'info' : logging.INFO,
               'warn' : logging.WARNING}
