@@ -62,9 +62,16 @@ log.debug('looking for keys in %s',ssh_dir)
 
 rsa_key = os.path.join(ssh_dir, 'id_rsa.pub')
 dsa_key = os.path.join(ssh_dir, 'id_dsa.pub')
+key_strings = []
 for key_file in [rsa_key, dsa_key]:
     if os.path.isfile(key_file):
         log.info('found public key %s', key_file)
+        with open(key_file,'r') as public_key:
+            key_strings.append(public_key.read().strip())
+
+authorized_keys = '\n'.join(key_strings)
+
+log.debug('list of collected keys:\n%s', authorized_keys)
 
 image_path = os.path.normpath(os.path.join(cwd,args.image))
 if not os.path.isfile(image_path):
@@ -82,3 +89,25 @@ gfs.mount('/dev/sda2','/')
 etc_passwd = gfs.cat('/etc/passwd')
 users = parse_etc_passwd(etc_passwd)
 print(users)
+
+if not gfs.exists(users['mosaq'].home):
+    log.error('user\'s home directory %s cannot be found, possibly it\'s on another partition', users['mosaq'].home)
+
+if not gfs.is_dir(ssh_dir):
+    log.info('[GUEST] creating directory %s', ssh_dir)
+    gfs.mkdir_mode(ssh_dir,0700)
+else:
+    log.info('[GUEST] directory %s present', ssh_dir)
+
+gfs.chown(users['mosaq'].uid, users['mosaq'].gid, ssh_dir)
+
+authorized_keys_file = os.path.join(ssh_dir,'authorized_keys')
+if gfs.is_file(authorized_keys_file):
+    log.info('[GUEST] file %s present, removing', authorized_keys_file)
+    gfs.rm(authorized_keys_file)
+
+log.info('[GUEST] creating file %s', authorized_keys_file)
+gfs.write(authorized_keys_file,authorized_keys)
+
+gfs.chmod(0600, authorized_keys_file)
+gfs.chown(users['mosaq'].uid, users['mosaq'].gid, authorized_keys_file)
