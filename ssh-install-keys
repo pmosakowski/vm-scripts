@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
-import argparse, os, logging
+import argparse, logging
+import os, os.path
 import guestfs
 
 loglevel = 'warn'
@@ -34,7 +35,13 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.StreamHandler())
 log.setLevel(args.loglevel)
 log.debug('cwd %s', cwd)
-log.info('Modifying image %s', args.image)
+
+image_path = os.path.normpath(os.path.join(cwd,args.image))
+if not os.path.isfile(image_path):
+    log.error('Image %s does not exists, is not accessible or not a regular file', image_path)
+    exit(1)
+
+log.info('Modifying image %s', image_path)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
