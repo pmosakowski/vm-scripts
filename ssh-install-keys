@@ -68,10 +68,10 @@ for key_file in [rsa_key, dsa_key]:
 
 image_path = os.path.normpath(os.path.join(cwd,args.image))
 if not os.path.isfile(image_path):
-    log.error('Image %s does not exists, is not accessible or not a regular file', image_path)
+    log.error('image %s does not exists, is not accessible or not a regular file', image_path)
     exit(1)
 
-log.info('Modifying image %s', image_path)
+log.info('modifying image %s', image_path)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
