@@ -4,6 +4,7 @@ import argparse, logging
 import os, os.path
 import csv, io
 from collections import namedtuple
+import re
 
 import guestfs
 
@@ -110,3 +111,16 @@ gfs.write(authorized_keys_file,authorized_keys)
 
 gfs.chmod(0600, authorized_keys_file)
 gfs.chown(users['mosaq'].uid, users['mosaq'].gid, authorized_keys_file)
+
+def find_guest_executable(executable_name):
+    guest_filelist = gfs.find('/')
+    rc_regex = re.compile('^.+/{}$'.format(executable_name))
+    for file_path in guest_filelist:
+        match = rc_regex.match(file_path)
+        if match:
+            executable = os.path.join('/',match.group(0))
+            log.debug('[GUEST] found executable %s', executable)
+            return executable
+
+restorecon = find_guest_executable('restorecon')
+load_policy = find_guest_executable('load_policy')
