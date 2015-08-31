@@ -54,9 +54,9 @@ log.setLevel(args.loglevel)
 log.debug('cwd %s', cwd)
 
 user = os.environ['USER']
-home = os.environ['HOME']
 log.debug('running as user %s', user)
 
+home = os.environ['HOME']
 ssh_dir = os.path.join(home, '.ssh')
 log.debug('looking for keys in %s',ssh_dir)
 
