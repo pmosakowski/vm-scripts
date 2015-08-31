@@ -26,7 +26,7 @@ class ParseLoglevel(argparse.Action):
 
 parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
 parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='Name of the target disk image')
-parser.add_argument('-l','--loglevel', help='Log message verbosity', default='warn', choices=loglevels, action=ParseLoglevel)
+parser.add_argument('-l','--loglevel', help='Log message verbosity', default=logging.WARNING, choices=loglevels, action=ParseLoglevel)
 
 args = parser.parse_args()
 
