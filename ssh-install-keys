@@ -2,6 +2,9 @@
 
 import argparse, logging
 import os, os.path
+import csv, io
+from collections import namedtuple
+
 import guestfs
 
 loglevel = 'warn'
@@ -23,6 +26,15 @@ class ParseLoglevel(argparse.Action):
         except:
             msg = '{} is not a supported loglevel'.format(loglevel_string)
             raise argparse.ArgumentTypeError(msg)
+
+User = namedtuple('User', ['uid','gid','home'])
+def parse_etc_passwd(file_contents):
+    mem_file = io.BytesIO(file_contents)
+    passwdreader = csv.reader(mem_file, delimiter=':')
+    users = {}
+    for row in passwdreader:
+        users[row[0]] = User(uid=row[2], gid=row[3], home=row[5])
+    return users
 
 parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
 parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
@@ -48,3 +60,7 @@ gfs = guestfs.GuestFS(python_return_dict=True)
 gfs.add_drive(args.image)
 gfs.launch()
 gfs.mount("/dev/sda2","/")
+
+etc_passwd = gfs.cat('/etc/passwd')
+users = parse_etc_passwd(etc_passwd)
+print(users)
