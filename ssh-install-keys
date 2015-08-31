@@ -33,7 +33,12 @@ def parse_etc_passwd(file_contents):
     passwdreader = csv.reader(mem_file, delimiter=':')
     users = {}
     for row in passwdreader:
-        users[row[0]] = User(uid=row[2], gid=row[3], home=row[5])
+        username = row[0]
+        uid = int(row[2])
+        gid = int(row[3])
+        home = row[5]
+        if uid >= 1000:
+            users[username] = User(uid=uid, gid=gid, home=home)
     return users
 
 parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
