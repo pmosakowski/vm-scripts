@@ -12,6 +12,9 @@ class ParseLoglevel(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
+        # 'choices' dictionary provided as argument to add_argument()
+        # is used both in validation of string values and conversion
+        # to loglevel constant
         if len(kwargs['choices']) is 0:
             raise ValueError("dict with valid logging choices must be provided")
         self.loglevels = kwargs['choices']
@@ -192,13 +195,23 @@ def replace_keys(gfs, config):
     restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
     config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
 
+def delete_keys(gfs, config):
+    config.log.info('[HOST] selected operation \'delete\'')
+    inspect = Inspector(gfs, config)
+    mount_fs_tree(gfs, inspect.mountpoints, config)
+
 config = Configurator()
 config.configure()
 
-gfs = guestfs.GuestFS(python_return_dict=True)
+operations = {
+        'replace' : replace_keys,
+        'delete' : delete_keys, }
 
+operation = operations['delete']
+
+gfs = guestfs.GuestFS(python_return_dict=True)
 gfs.add_drive(config.image_path)
 gfs.set_selinux(1)
 gfs.launch()
 
-replace_keys(gfs, config)
+operation(gfs, config)
