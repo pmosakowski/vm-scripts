@@ -96,6 +96,24 @@ class Configurator:
         else:
             self.log.info('[HOST] modifying image %s', self.image_path)
 
+# Class for inspecting the disk image that will tell us the relevant information
+class Inspector:
+    def __init__(self, guestfs_handle, config):
+        self.gfs = guestfs_handle
+        self.config = config
+        self.log = self.config.log
+        self.__inspect()
+
+    def __inspect(self):
+        os_list = self.gfs.inspect_os()
+        assert(len(os_list) == 1)
+        self.root_fs = os_list[0]
+        self.log.info('[GUEST] found root filesystem %s', self.root_fs)
+
+        self.mountpoints = self.gfs.inspect_get_mountpoints(self.root_fs)
+        for mount,part in self.mountpoints.iteritems():
+            self.log.debug('[GUEST] found partition %s : %s', mount, part)
+
 # Here start commands that create new authorized_keys file on host
 # replacing the old one if present
 def replace_keys(config):
@@ -117,6 +135,9 @@ def replace_keys(config):
     gfs.add_drive(config.image_path)
     gfs.set_selinux(1)
     gfs.launch()
+
+    inspect = Inspector(gfs, config)
+
     gfs.mount('/dev/sda2','/')
 
     etc_passwd = gfs.cat('/etc/passwd')
