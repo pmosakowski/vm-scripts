@@ -76,6 +76,15 @@ config.parse_commandline()
 config.setup_logging()
 config.load_env_vars()
 
+image_path = os.path.normpath(os.path.join(config.cwd, config.image))
+if not os.path.isfile(image_path):
+    config.log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
+    exit(1)
+else:
+    config.log.info('[HOST] modifying image %s', image_path)
+
+# Here start commands that create new authorized_keys file on host
+
 rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
 dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
 key_strings = []
@@ -88,13 +97,6 @@ for key_file in [rsa_key, dsa_key]:
 authorized_keys = '\n'.join(key_strings)
 
 config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
-
-image_path = os.path.normpath(os.path.join(config.cwd, config.image))
-if not os.path.isfile(image_path):
-    config.log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
-    exit(1)
-
-config.log.info('[HOST] modifying image %s', image_path)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
