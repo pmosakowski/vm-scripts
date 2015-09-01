@@ -213,6 +213,8 @@ def delete_keys(gfs, config):
     if gfs.is_file(authorized_keys_path):
         config.log.info('[GUEST] removing file %s', authorized_keys_path)
         gfs.rm(authorized_keys_path)
+    else:
+        config.log.info('[GUEST] file %s doesn\'t exist, skipping', authorized_keys_path)
 
 config = Configurator()
 config.configure()
