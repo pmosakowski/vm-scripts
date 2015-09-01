@@ -29,19 +29,6 @@ class ParseLoglevel(argparse.Action):
             msg = '{} is not a supported loglevel'.format(loglevel_string)
             raise argparse.ArgumentTypeError(msg)
 
-User = namedtuple('User', ['uid','gid','home'])
-def parse_etc_passwd(file_contents):
-    mem_file = io.BytesIO(file_contents)
-    passwdreader = csv.reader(mem_file, delimiter=':')
-    users = {}
-    for row in passwdreader:
-        username = row[0]
-        uid = int(row[2])
-        gid = int(row[3])
-        home = row[5]
-        if uid >= 1000:
-            users[username] = User(uid=uid, gid=gid, home=home)
-    return users
 
 class Configurator:
     def __init__(self):
@@ -120,6 +107,29 @@ class Inspector:
         for mount,part in self.mountpoints.iteritems():
             self.log.debug('[GUEST] found partition %s : %s', mount, part)
 
+        mount_fs_tree(gfs, self.mountpoints, config)
+
+        etc_passwd = gfs.cat('/etc/passwd')
+        self.users = self.parse_etc_passwd(etc_passwd)
+
+    @staticmethod
+    def parse_etc_passwd(file_contents):
+        User = namedtuple('User', ['uid','gid','home'])
+
+        mem_file = io.BytesIO(file_contents)
+        passwdreader = csv.reader(mem_file, delimiter=':')
+
+        users = {}
+
+        for row in passwdreader:
+            username = row[0]
+            uid = int(row[2])
+            gid = int(row[3])
+            home = row[5]
+            if uid >= 1000:
+                users[username] = User(uid=uid, gid=gid, home=home)
+        return users
+
 def mount_fs_tree(gfs, mountpoints, config):
     for mountpoint in sorted(mountpoints.keys()):
         partition = mountpoints[mountpoint]
@@ -146,12 +156,7 @@ def replace_keys(gfs, config):
 
 
     inspect = Inspector(gfs, config)
-
-    mount_fs_tree(gfs, inspect.mountpoints, config)
-
-    etc_passwd = gfs.cat('/etc/passwd')
-    users = parse_etc_passwd(etc_passwd)
-    print(users)
+    users = inspect.users
 
     guest_home = users['mosaq'].home
     if not gfs.exists(guest_home):
@@ -203,11 +208,9 @@ def append_keys(gfs, config):
 
 def delete_keys(gfs, config):
     config.log.info('[HOST] selected operation \'delete\'')
-    inspect = Inspector(gfs, config)
-    mount_fs_tree(gfs, inspect.mountpoints, config)
 
-    etc_passwd = gfs.cat('/etc/passwd')
-    users = parse_etc_passwd(etc_passwd)
+    inspect = Inspector(gfs, config)
+    users = inspect.users
 
     authorized_keys_path = os.path.join(users['mosaq'].home, '.ssh', 'authorized_keys')
     if gfs.is_file(authorized_keys_path):
