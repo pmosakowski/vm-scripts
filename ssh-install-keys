@@ -83,76 +83,79 @@ class Configurator:
         else:
             self.log.info('[HOST] modifying image %s', self.image_path)
 
+# Here start commands that create new authorized_keys file on host
+# replacing the old one if present
+def replace_keys(config):
+    rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
+    dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
+    key_strings = []
+    for key_file in [rsa_key, dsa_key]:
+        if os.path.isfile(key_file):
+            config.log.info('[HOST] found public key %s', key_file)
+            with open(key_file,'r') as public_key:
+                key_strings.append(public_key.read().strip())
+
+    authorized_keys = '\n'.join(key_strings)
+
+    config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
+
+    gfs = guestfs.GuestFS(python_return_dict=True)
+
+    gfs.add_drive(config.image_path)
+    gfs.set_selinux(1)
+    gfs.launch()
+    gfs.mount('/dev/sda2','/')
+
+    etc_passwd = gfs.cat('/etc/passwd')
+    users = parse_etc_passwd(etc_passwd)
+    print(users)
+
+    guest_home = users['mosaq'].home
+    if not gfs.exists(guest_home):
+        config.log.error('[GUEST] user\'s home directory %s cannot be found, possibly it\'s on another partition', users['mosaq'].home)
+    else:
+        guest_ssh_dir = os.path.join(guest_home, '.ssh')
+
+    if not gfs.is_dir(guest_ssh_dir):
+        config.log.info('[GUEST] creating directory %s', guest_ssh_dir)
+        gfs.mkdir_mode(guest_ssh_dir,0700)
+    else:
+        config.log.info('[GUEST] directory %s present', guest_ssh_dir)
+        gfs.chmod(0700, guest_ssh_dir)
+
+    gfs.chown(users['mosaq'].uid, users['mosaq'].gid, guest_ssh_dir)
+
+    authorized_keys_file = os.path.join(guest_ssh_dir,'authorized_keys')
+    if gfs.is_file(authorized_keys_file):
+        config.log.info('[GUEST] file %s present, removing', authorized_keys_file)
+        gfs.rm(authorized_keys_file)
+
+    config.log.info('[GUEST] creating file %s', authorized_keys_file)
+    gfs.write(authorized_keys_file,authorized_keys)
+
+    gfs.chmod(0600, authorized_keys_file)
+    gfs.chown(users['mosaq'].uid, users['mosaq'].gid, authorized_keys_file)
+
+    def find_guest_executable(executable_name):
+        guest_filelist = gfs.find('/')
+        rc_regex = re.compile('^.+/{}$'.format(executable_name))
+        for file_path in guest_filelist:
+            match = rc_regex.match(file_path)
+            if match:
+                executable = os.path.join('/',match.group(0))
+                config.log.debug('[GUEST] found executable %s', executable)
+                return executable
+
+    config.log.info('[GUEST] restoring SELinux context on %s', authorized_keys_file)
+    restorecon = find_guest_executable('restorecon')
+    load_policy = find_guest_executable('load_policy')
+
+    load_policy_output = gfs.sh(load_policy)
+    config.log.debug('[GUEST] %s[%i] : %s', load_policy, len(load_policy_output), load_policy_output)
+    restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
+    config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
+
 config = Configurator()
 config.configure()
 
-# Here start commands that create new authorized_keys file on host
-
-rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
-dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
-key_strings = []
-for key_file in [rsa_key, dsa_key]:
-    if os.path.isfile(key_file):
-        config.log.info('[HOST] found public key %s', key_file)
-        with open(key_file,'r') as public_key:
-            key_strings.append(public_key.read().strip())
-
-authorized_keys = '\n'.join(key_strings)
-
-config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
-
-gfs = guestfs.GuestFS(python_return_dict=True)
-
-gfs.add_drive(config.image_path)
-gfs.set_selinux(1)
-gfs.launch()
-gfs.mount('/dev/sda2','/')
-
-etc_passwd = gfs.cat('/etc/passwd')
-users = parse_etc_passwd(etc_passwd)
-print(users)
-
-guest_home = users['mosaq'].home
-if not gfs.exists(guest_home):
-    config.log.error('[GUEST] user\'s home directory %s cannot be found, possibly it\'s on another partition', users['mosaq'].home)
-else:
-    guest_ssh_dir = os.path.join(guest_home, '.ssh')
-
-if not gfs.is_dir(guest_ssh_dir):
-    config.log.info('[GUEST] creating directory %s', guest_ssh_dir)
-    gfs.mkdir_mode(guest_ssh_dir,0700)
-else:
-    config.log.info('[GUEST] directory %s present', guest_ssh_dir)
-    gfs.chmod(0700, guest_ssh_dir)
-
-gfs.chown(users['mosaq'].uid, users['mosaq'].gid, guest_ssh_dir)
-
-authorized_keys_file = os.path.join(guest_ssh_dir,'authorized_keys')
-if gfs.is_file(authorized_keys_file):
-    config.log.info('[GUEST] file %s present, removing', authorized_keys_file)
-    gfs.rm(authorized_keys_file)
-
-config.log.info('[GUEST] creating file %s', authorized_keys_file)
-gfs.write(authorized_keys_file,authorized_keys)
-
-gfs.chmod(0600, authorized_keys_file)
-gfs.chown(users['mosaq'].uid, users['mosaq'].gid, authorized_keys_file)
-
-def find_guest_executable(executable_name):
-    guest_filelist = gfs.find('/')
-    rc_regex = re.compile('^.+/{}$'.format(executable_name))
-    for file_path in guest_filelist:
-        match = rc_regex.match(file_path)
-        if match:
-            executable = os.path.join('/',match.group(0))
-            config.log.debug('[GUEST] found executable %s', executable)
-            return executable
-
-config.log.info('[GUEST] restoring SELinux context on %s', authorized_keys_file)
-restorecon = find_guest_executable('restorecon')
-load_policy = find_guest_executable('load_policy')
-
-load_policy_output = gfs.sh(load_policy)
-config.log.debug('[GUEST] %s[%i] : %s', load_policy, len(load_policy_output), load_policy_output)
-restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
-config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
+replace_keys(config)
