@@ -120,21 +120,22 @@ def mount_fs_tree(gfs, mountpoints, config):
         gfs.mount(partition, mountpoint)
         config.log.info('[GUEST] mounting partition %s : %s', mountpoint, partition)
 
+def get_ssh_keys(config):
+    rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
+    dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
+    keys = {}
+    for key_path in [rsa_key, dsa_key]:
+        if os.path.isfile(key_path):
+            config.log.info('[HOST] found public key %s', key_path)
+            with open(key_path,'r') as key_file:
+                keys[key_path] = key_file.read().strip()
+
+    return keys
 
 # Here start commands that create new authorized_keys file on host
 # replacing the old one if present
 def replace_keys(config):
-    rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
-    dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
-    key_strings = []
-    for key_file in [rsa_key, dsa_key]:
-        if os.path.isfile(key_file):
-            config.log.info('[HOST] found public key %s', key_file)
-            with open(key_file,'r') as public_key:
-                key_strings.append(public_key.read().strip())
-
-    authorized_keys = '\n'.join(key_strings)
-
+    authorized_keys = '\n'.join(get_ssh_keys(config).values())
     config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
     gfs = guestfs.GuestFS(python_return_dict=True)
