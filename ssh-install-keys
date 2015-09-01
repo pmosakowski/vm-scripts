@@ -114,6 +114,13 @@ class Inspector:
         for mount,part in self.mountpoints.iteritems():
             self.log.debug('[GUEST] found partition %s : %s', mount, part)
 
+def mount_fs_tree(gfs, mountpoints, config):
+    for mountpoint in sorted(mountpoints.keys()):
+        partition = mountpoints[mountpoint]
+        gfs.mount(partition, mountpoint)
+        config.log.info('[GUEST] mounting partition %s : %s', mountpoint, partition)
+
+
 # Here start commands that create new authorized_keys file on host
 # replacing the old one if present
 def replace_keys(config):
@@ -138,7 +145,7 @@ def replace_keys(config):
 
     inspect = Inspector(gfs, config)
 
-    gfs.mount('/dev/sda2','/')
+    mount_fs_tree(gfs, inspect.mountpoints, config)
 
     etc_passwd = gfs.cat('/etc/passwd')
     users = parse_etc_passwd(etc_passwd)
