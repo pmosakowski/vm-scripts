@@ -54,14 +54,14 @@ class Configurator:
         operation = self.parser.add_mutually_exclusive_group()
         append_help = 'if file \'authorized_keys\' exists keys will be appended to it (if' \
                       'not present already), otherwise the file will be created'
-        operation.add_argument('-a', '--append', help=append_help, action='store_true')
+        operation.add_argument('-a', '--append', help=append_help, dest='operation', const=append_keys, action='store_const')
 
         replace_help  = 'if file \'authorized_keys\' exists it will be removed and a new' \
                         'file will be created. This is the default operation'
-        operation.add_argument('-r', '--replace', help=replace_help, action='store_true')
+        operation.add_argument('-r', '--replace', help=replace_help, dest='operation', const=replace_keys, action='store_const')
 
         delete_help = 'if file \'authorized_keys\' exists it will be removed'
-        operation.add_argument('-d', '--delete', help=delete_help, action='store_true')
+        operation.add_argument('-d', '--delete', help=delete_help, dest='operation', const=delete_keys, action='store_const')
 
         self.parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
         self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=self.loglevels, action=ParseLoglevel)
@@ -70,13 +70,7 @@ class Configurator:
         self.args = self.parser.parse_args()
         self.image = self.args.image
         self.loglevel = self.args.loglevel
-
-        if self.args.append:
-            self.operation = 'append'
-        elif self.args.delete:
-            self.operation = 'delete'
-        else: # default operation
-            self.operation = 'replace'
+        self.operation = self.args.operation
 
     def __setup_logging(self):
         self.log = logging.getLogger(__name__)
@@ -98,6 +92,8 @@ class Configurator:
         self.__parse_commandline()
         self.__setup_logging()
         self.__load_env_vars()
+
+        self.log.debug('[HOST] command line arguments %s', self.args)
 
         self.image_path = os.path.normpath(os.path.join(self.cwd, self.image))
         if not os.path.isfile(self.image_path):
@@ -202,6 +198,9 @@ def replace_keys(gfs, config):
     restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
     config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
 
+def append_keys(gfs, config):
+    config.log.info('[HOST] selected operation \'append\'')
+
 def delete_keys(gfs, config):
     config.log.info('[HOST] selected operation \'delete\'')
     inspect = Inspector(gfs, config)
@@ -222,7 +221,7 @@ operations = {
         'replace' : replace_keys,
         'delete' : delete_keys, }
 
-operation = operations[config.operation]
+operation = config.operation
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 gfs.add_drive(config.image_path)
