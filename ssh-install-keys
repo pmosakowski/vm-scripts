@@ -83,6 +83,7 @@ log.info('[HOST] modifying image %s', image_path)
 gfs = guestfs.GuestFS(python_return_dict=True)
 
 gfs.add_drive(args.image)
+gfs.set_selinux(1)
 gfs.launch()
 gfs.mount('/dev/sda2','/')
 
@@ -122,5 +123,11 @@ def find_guest_executable(executable_name):
             log.debug('[GUEST] found executable %s', executable)
             return executable
 
+log.info('[GUEST] restoring SELinux context on %s', authorized_keys_file)
 restorecon = find_guest_executable('restorecon')
 load_policy = find_guest_executable('load_policy')
+
+load_policy_output = gfs.sh(load_policy)
+log.debug('[GUEST] %s[%i] : %s', load_policy, len(load_policy_output), load_policy_output)
+restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
+log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
