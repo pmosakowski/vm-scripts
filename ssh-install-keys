@@ -71,6 +71,13 @@ class Configurator:
         self.image = self.args.image
         self.loglevel = self.args.loglevel
 
+        if self.args.append:
+            self.operation = 'append'
+        elif self.args.delete:
+            self.operation = 'delete'
+        else: # default operation
+            self.operation = 'replace'
+
     def __setup_logging(self):
         self.log = logging.getLogger(__name__)
         self.log.addHandler(logging.StreamHandler())
@@ -207,7 +214,7 @@ operations = {
         'replace' : replace_keys,
         'delete' : delete_keys, }
 
-operation = operations['delete']
+operation = operations[config.operation]
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 gfs.add_drive(config.image_path)
