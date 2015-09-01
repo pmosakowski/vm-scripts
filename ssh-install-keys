@@ -207,6 +207,14 @@ def delete_keys(gfs, config):
     inspect = Inspector(gfs, config)
     mount_fs_tree(gfs, inspect.mountpoints, config)
 
+    etc_passwd = gfs.cat('/etc/passwd')
+    users = parse_etc_passwd(etc_passwd)
+
+    authorized_keys_path = os.path.join(users['mosaq'].home, '.ssh', 'authorized_keys')
+    if gfs.is_file(authorized_keys_path):
+        config.log.info('[GUEST] removing file %s', authorized_keys_path)
+        gfs.rm(authorized_keys_path)
+
 config = Configurator()
 config.configure()
 
