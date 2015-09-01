@@ -41,16 +41,24 @@ def parse_etc_passwd(file_contents):
             users[username] = User(uid=uid, gid=gid, home=home)
     return users
 
-parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
-parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
-parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=loglevels, action=ParseLoglevel)
+class Configurator:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
+        self.parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
+        self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=loglevels, action=ParseLoglevel)
 
-args = parser.parse_args()
+    def parse_commandline(self):
+        self.args = self.parser.parse_args()
+        self.image = self.args.image
+        self.loglevel = self.args.loglevel
+
+config = Configurator()
+config.parse_commandline()
 
 cwd = os.getcwd()
 log = logging.getLogger(__name__)
 log.addHandler(logging.StreamHandler())
-log.setLevel(args.loglevel)
+log.setLevel(config.loglevel)
 log.debug('[HOST] current working directory %s', cwd)
 
 user = os.environ['USER']
@@ -73,7 +81,7 @@ authorized_keys = '\n'.join(key_strings)
 
 log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
-image_path = os.path.normpath(os.path.join(cwd,args.image))
+image_path = os.path.normpath(os.path.join(cwd,config.image))
 if not os.path.isfile(image_path):
     log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
     exit(1)
@@ -82,7 +90,7 @@ log.info('[HOST] modifying image %s', image_path)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
-gfs.add_drive(args.image)
+gfs.add_drive(image_path)
 gfs.set_selinux(1)
 gfs.launch()
 gfs.mount('/dev/sda2','/')
