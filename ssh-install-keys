@@ -8,19 +8,18 @@ import re
 
 import guestfs
 
-loglevels = { 'debug' : logging.DEBUG,
-              'info' : logging.INFO,
-              'warn' : logging.WARNING}
-
 class ParseLoglevel(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
+        if len(kwargs['choices']) is 0:
+            raise ValueError("dict with valid logging choices must be provided")
+        self.loglevels = kwargs['choices']
         super(ParseLoglevel, self).__init__(option_strings, dest, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
-        loglevel = self.parse_loglevel(values)
+        loglevel = self.parse_loglevel(values, self.loglevels)
         setattr(namespace, self.dest, loglevel)
-    def parse_loglevel(self, loglevel_string):
+    def parse_loglevel(self, loglevel_string, loglevels):
         try:
             return loglevels[loglevel_string]
         except:
@@ -43,50 +42,57 @@ def parse_etc_passwd(file_contents):
 
 class Configurator:
     def __init__(self):
+        self.loglevels = { 'debug' : logging.DEBUG,
+                      'info' : logging.INFO,
+                      'warn' : logging.WARNING}
+
         self.parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
         self.parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
-        self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=loglevels, action=ParseLoglevel)
+        self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=self.loglevels, action=ParseLoglevel)
 
     def parse_commandline(self):
         self.args = self.parser.parse_args()
         self.image = self.args.image
         self.loglevel = self.args.loglevel
 
+    def setup_logging(self):
+        self.log = logging.getLogger(__name__)
+        self.log.addHandler(logging.StreamHandler())
+        self.log.setLevel(self.loglevel)
+
 config = Configurator()
 config.parse_commandline()
+config.setup_logging()
 
 cwd = os.getcwd()
-log = logging.getLogger(__name__)
-log.addHandler(logging.StreamHandler())
-log.setLevel(config.loglevel)
-log.debug('[HOST] current working directory %s', cwd)
+config.log.debug('[HOST] current working directory %s', cwd)
 
 user = os.environ['USER']
-log.debug('[HOST] running as user %s', user)
+config.log.debug('[HOST] running as user %s', user)
 
 home = os.environ['HOME']
 ssh_dir = os.path.join(home, '.ssh')
-log.debug('[HOST] looking for keys in %s',ssh_dir)
+config.log.debug('[HOST] looking for keys in %s',ssh_dir)
 
 rsa_key = os.path.join(ssh_dir, 'id_rsa.pub')
 dsa_key = os.path.join(ssh_dir, 'id_dsa.pub')
 key_strings = []
 for key_file in [rsa_key, dsa_key]:
     if os.path.isfile(key_file):
-        log.info('[HOST] found public key %s', key_file)
+        config.log.info('[HOST] found public key %s', key_file)
         with open(key_file,'r') as public_key:
             key_strings.append(public_key.read().strip())
 
 authorized_keys = '\n'.join(key_strings)
 
-log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
+config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
 image_path = os.path.normpath(os.path.join(cwd,config.image))
 if not os.path.isfile(image_path):
-    log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
+    config.log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
     exit(1)
 
-log.info('[HOST] modifying image %s', image_path)
+config.log.info('[HOST] modifying image %s', image_path)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
@@ -100,22 +106,22 @@ users = parse_etc_passwd(etc_passwd)
 print(users)
 
 if not gfs.exists(users['mosaq'].home):
-    log.error('[GUEST] user\'s home directory %s cannot be found, possibly it\'s on another partition', users['mosaq'].home)
+    config.log.error('[GUEST] user\'s home directory %s cannot be found, possibly it\'s on another partition', users['mosaq'].home)
 
 if not gfs.is_dir(ssh_dir):
-    log.info('[GUEST] creating directory %s', ssh_dir)
+    config.log.info('[GUEST] creating directory %s', ssh_dir)
     gfs.mkdir_mode(ssh_dir,0700)
 else:
-    log.info('[GUEST] directory %s present', ssh_dir)
+    config.log.info('[GUEST] directory %s present', ssh_dir)
 
 gfs.chown(users['mosaq'].uid, users['mosaq'].gid, ssh_dir)
 
 authorized_keys_file = os.path.join(ssh_dir,'authorized_keys')
 if gfs.is_file(authorized_keys_file):
-    log.info('[GUEST] file %s present, removing', authorized_keys_file)
+    config.log.info('[GUEST] file %s present, removing', authorized_keys_file)
     gfs.rm(authorized_keys_file)
 
-log.info('[GUEST] creating file %s', authorized_keys_file)
+config.log.info('[GUEST] creating file %s', authorized_keys_file)
 gfs.write(authorized_keys_file,authorized_keys)
 
 gfs.chmod(0600, authorized_keys_file)
@@ -128,14 +134,14 @@ def find_guest_executable(executable_name):
         match = rc_regex.match(file_path)
         if match:
             executable = os.path.join('/',match.group(0))
-            log.debug('[GUEST] found executable %s', executable)
+            config.log.debug('[GUEST] found executable %s', executable)
             return executable
 
-log.info('[GUEST] restoring SELinux context on %s', authorized_keys_file)
+config.log.info('[GUEST] restoring SELinux context on %s', authorized_keys_file)
 restorecon = find_guest_executable('restorecon')
 load_policy = find_guest_executable('load_policy')
 
 load_policy_output = gfs.sh(load_policy)
-log.debug('[GUEST] %s[%i] : %s', load_policy, len(load_policy_output), load_policy_output)
+config.log.debug('[GUEST] %s[%i] : %s', load_policy, len(load_policy_output), load_policy_output)
 restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
-log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
+config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
