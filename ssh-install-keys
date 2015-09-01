@@ -134,15 +134,10 @@ def get_ssh_keys(config):
 
 # Here start commands that create new authorized_keys file on host
 # replacing the old one if present
-def replace_keys(config):
+def replace_keys(gfs, config):
     authorized_keys = '\n'.join(get_ssh_keys(config).values())
     config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
-    gfs = guestfs.GuestFS(python_return_dict=True)
-
-    gfs.add_drive(config.image_path)
-    gfs.set_selinux(1)
-    gfs.launch()
 
     inspect = Inspector(gfs, config)
 
@@ -200,4 +195,10 @@ def replace_keys(config):
 config = Configurator()
 config.configure()
 
-replace_keys(config)
+gfs = guestfs.GuestFS(python_return_dict=True)
+
+gfs.add_drive(config.image_path)
+gfs.set_selinux(1)
+gfs.launch()
+
+replace_keys(gfs, config)
