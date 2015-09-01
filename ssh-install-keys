@@ -47,6 +47,19 @@ class Configurator:
                       'warn' : logging.WARNING}
 
         self.parser = argparse.ArgumentParser(description='Add your SSH public keys to a user on a virtual machine disk')
+
+        operation = self.parser.add_mutually_exclusive_group()
+        append_help = 'if file \'authorized_keys\' exists keys will be appended to it (if' \
+                      'not present already), otherwise the file will be created'
+        operation.add_argument('-a', '--append', help=append_help, action='store_true')
+
+        replace_help  = 'if file \'authorized_keys\' exists it will be removed and a new' \
+                        'file will be created. This is the default operation'
+        operation.add_argument('-r', '--replace', help=replace_help, action='store_true')
+
+        delete_help = 'if file \'authorized_keys\' exists it will be removed'
+        operation.add_argument('-d', '--delete', help=delete_help, action='store_true')
+
         self.parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
         self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=self.loglevels, action=ParseLoglevel)
 
