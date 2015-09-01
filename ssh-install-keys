@@ -50,17 +50,17 @@ class Configurator:
         self.parser.add_argument('image', metavar='DISK_IMAGE', type=str, help='name of the target disk image')
         self.parser.add_argument('-l','--loglevel', help='log message verbosity', default=logging.WARNING, choices=self.loglevels, action=ParseLoglevel)
 
-    def parse_commandline(self):
+    def __parse_commandline(self):
         self.args = self.parser.parse_args()
         self.image = self.args.image
         self.loglevel = self.args.loglevel
 
-    def setup_logging(self):
+    def __setup_logging(self):
         self.log = logging.getLogger(__name__)
         self.log.addHandler(logging.StreamHandler())
         self.log.setLevel(self.loglevel)
 
-    def load_env_vars(self):
+    def __load_env_vars(self):
         self.cwd = os.getcwd()
         self.log.debug('[HOST] current working directory %s', self.cwd)
 
@@ -71,17 +71,20 @@ class Configurator:
         self.host_ssh_dir = os.path.join(self.host_home, '.ssh')
         self.log.debug('[HOST] looking for keys in %s', self.host_ssh_dir)
 
-config = Configurator()
-config.parse_commandline()
-config.setup_logging()
-config.load_env_vars()
+    def configure(self):
+        self.__parse_commandline()
+        self.__setup_logging()
+        self.__load_env_vars()
 
-image_path = os.path.normpath(os.path.join(config.cwd, config.image))
-if not os.path.isfile(image_path):
-    config.log.error('[HOST] image %s does not exists, is not accessible or not a regular file', image_path)
-    exit(1)
-else:
-    config.log.info('[HOST] modifying image %s', image_path)
+        self.image_path = os.path.normpath(os.path.join(self.cwd, self.image))
+        if not os.path.isfile(self.image_path):
+            self.log.error('[HOST] image %s does not exists, is not accessible or not a regular file', self.image_path)
+            exit(1)
+        else:
+            self.log.info('[HOST] modifying image %s', self.image_path)
+
+config = Configurator()
+config.configure()
 
 # Here start commands that create new authorized_keys file on host
 
@@ -100,7 +103,7 @@ config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
 gfs = guestfs.GuestFS(python_return_dict=True)
 
-gfs.add_drive(image_path)
+gfs.add_drive(config.image_path)
 gfs.set_selinux(1)
 gfs.launch()
 gfs.mount('/dev/sda2','/')
