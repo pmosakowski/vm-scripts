@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import argparse
+# import guestfs
+
+class Configurator:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description='Alter GRUB2 options inside virtual machine image')
+        self.parser.add_argument('disk_image', help='Name of disk image file to alter')
+        self.parser.add_argument('-t', '--timeout', type=int, help='Set boot timeout in seconds,' \
+                ' in case of VMs it\'s handy to set it to 0')
+        self.parser.add_argument('-g', '--gfx-mode', help='GFX_MODE for the console, e.g.' \
+                ' \'1024x768\' or \'800x600\' (without quotes)')
+
+        self.parser.parse_args()
+
+config = Configurator()
