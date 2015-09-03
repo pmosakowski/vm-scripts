@@ -41,7 +41,9 @@ class GuestFSDisk:
 
     @property
     def users(self):
-        if not hasattr(self,'__users'):
+        try:
+            return self.__users
+        except:
             User = namedtuple('User', ['uid','gid','home'])
 
             etc_passwd = self.gfs.cat('/etc/passwd')
@@ -58,4 +60,4 @@ class GuestFSDisk:
                 if uid >= 1000:
                     self.__users[username] = User(uid=uid, gid=gid, home=home)
 
-        return self.__users
+            return self.__users
