@@ -17,9 +17,11 @@ class GuestFSDisk:
         self.gfs.set_selinux(1)
         self.gfs.launch()
 
-        self.__inspect()
-
-    def __inspect(self):
+        self.__inspect_fs()
+        self.__mount_fs_tree(self.mountpoints)
+    
+    # gather information about filesystem layout
+    def __inspect_fs(self):
         os_list = self.gfs.inspect_os()
         assert(len(os_list) == 1)
         self.root_fs = os_list[0]
@@ -28,8 +30,6 @@ class GuestFSDisk:
         self.mountpoints = self.gfs.inspect_get_mountpoints(self.root_fs)
         for mount,part in self.mountpoints.items():
             self.log.debug('[GUEST] found partition %s : %s', mount, part)
-
-        self.__mount_fs_tree(self.mountpoints)
 
     def __mount_fs_tree(self, mountpoints):
         for mountpoint in sorted(mountpoints.keys()):
