@@ -6,7 +6,7 @@ import csv, io
 from collections import namedtuple
 import re
 
-import guestfs
+from vm_common import GuestFSDisk
 
 class ParseLoglevel(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -94,53 +94,6 @@ class Configurator:
         else:
             self.log.info('[HOST] modifying image %s', self.image_path)
 
-# Class for inspecting the disk image that will tell us the relevant information
-class Inspector:
-    def __init__(self, guestfs_handle, config):
-        self.gfs = guestfs_handle
-        self.config = config
-        self.log = self.config.log
-        self.__inspect()
-
-    def __inspect(self):
-        os_list = self.gfs.inspect_os()
-        assert(len(os_list) == 1)
-        self.root_fs = os_list[0]
-        self.log.info('[GUEST] found root filesystem %s', self.root_fs)
-
-        self.mountpoints = self.gfs.inspect_get_mountpoints(self.root_fs)
-        for mount,part in self.mountpoints.items():
-            self.log.debug('[GUEST] found partition %s : %s', mount, part)
-
-        mount_fs_tree(gfs, self.mountpoints, config)
-
-        etc_passwd = gfs.cat('/etc/passwd')
-        self.users = self.parse_etc_passwd(etc_passwd)
-
-    @staticmethod
-    def parse_etc_passwd(file_contents):
-        User = namedtuple('User', ['uid','gid','home'])
-
-        mem_file = io.StringIO(file_contents)
-        passwdreader = csv.reader(mem_file, delimiter=':')
-
-        users = {}
-
-        for row in passwdreader:
-            username = row[0]
-            uid = int(row[2])
-            gid = int(row[3])
-            home = row[5]
-            if uid >= 1000:
-                users[username] = User(uid=uid, gid=gid, home=home)
-        return users
-
-def mount_fs_tree(gfs, mountpoints, config):
-    for mountpoint in sorted(mountpoints.keys()):
-        partition = mountpoints[mountpoint]
-        gfs.mount(partition, mountpoint)
-        config.log.info('[GUEST] mounting partition %s : %s', mountpoint, partition)
-
 def get_ssh_keys(config):
     rsa_key = os.path.join(config.host_ssh_dir, 'id_rsa.pub')
     dsa_key = os.path.join(config.host_ssh_dir, 'id_dsa.pub')
@@ -155,13 +108,12 @@ def get_ssh_keys(config):
 
 # Here start commands that create new authorized_keys file on host
 # replacing the old one if present
-def replace_keys(gfs, config):
+def replace_keys(gfs_disk, config):
     authorized_keys = '\n'.join(get_ssh_keys(config).values())
     config.log.debug('[HOST] list of collected keys:\n%s', authorized_keys)
 
-
-    inspect = Inspector(gfs, config)
-    users = inspect.users
+    users = gfs_disk.users
+    gfs = gfs_disk.gfs
 
     guest_home = users['mosaq'].home
     if not gfs.exists(guest_home):
@@ -208,14 +160,14 @@ def replace_keys(gfs, config):
     restorecon_output = gfs.sh(restorecon + " " + authorized_keys_file)
     config.log.debug('[GUEST] %s[%i] : %s', restorecon, len(restorecon_output), restorecon_output)
 
-def append_keys(gfs, config):
+def append_keys(gfs_disk, config):
     config.log.info('[HOST] selected operation \'append\'')
 
-def delete_keys(gfs, config):
+def delete_keys(gfs_disk, config):
     config.log.info('[HOST] selected operation \'delete\'')
 
-    inspect = Inspector(gfs, config)
-    users = inspect.users
+    users = gfs_disk.users
+    gfs = gfs_disk.gfs
 
     authorized_keys_path = os.path.join(users['mosaq'].home, '.ssh', 'authorized_keys')
     if gfs.is_file(authorized_keys_path):
@@ -233,9 +185,6 @@ operations = {
 
 operation = config.operation
 
-gfs = guestfs.GuestFS(python_return_dict=True)
-gfs.add_drive(config.image_path)
-gfs.set_selinux(1)
-gfs.launch()
+disk = GuestFSDisk(config.image_path)
 
-operation(gfs, config)
+operation(disk, config)
