@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import argparse, logging
 import os, os.path
@@ -109,7 +109,7 @@ class Inspector:
         self.log.info('[GUEST] found root filesystem %s', self.root_fs)
 
         self.mountpoints = self.gfs.inspect_get_mountpoints(self.root_fs)
-        for mount,part in self.mountpoints.iteritems():
+        for mount,part in self.mountpoints.items():
             self.log.debug('[GUEST] found partition %s : %s', mount, part)
 
         mount_fs_tree(gfs, self.mountpoints, config)
@@ -121,7 +121,7 @@ class Inspector:
     def parse_etc_passwd(file_contents):
         User = namedtuple('User', ['uid','gid','home'])
 
-        mem_file = io.BytesIO(file_contents)
+        mem_file = io.StringIO(file_contents)
         passwdreader = csv.reader(mem_file, delimiter=':')
 
         users = {}
@@ -171,10 +171,10 @@ def replace_keys(gfs, config):
 
     if not gfs.is_dir(guest_ssh_dir):
         config.log.info('[GUEST] creating directory %s', guest_ssh_dir)
-        gfs.mkdir_mode(guest_ssh_dir,0700)
+        gfs.mkdir_mode(guest_ssh_dir,0o700)
     else:
         config.log.info('[GUEST] directory %s present', guest_ssh_dir)
-        gfs.chmod(0700, guest_ssh_dir)
+        gfs.chmod(0o700, guest_ssh_dir)
 
     gfs.chown(users['mosaq'].uid, users['mosaq'].gid, guest_ssh_dir)
 
@@ -186,7 +186,7 @@ def replace_keys(gfs, config):
     config.log.info('[GUEST] creating file %s', authorized_keys_file)
     gfs.write(authorized_keys_file,authorized_keys)
 
-    gfs.chmod(0600, authorized_keys_file)
+    gfs.chmod(0o600, authorized_keys_file)
     gfs.chown(users['mosaq'].uid, users['mosaq'].gid, authorized_keys_file)
 
     def find_guest_executable(executable_name):
