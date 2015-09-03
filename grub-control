@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse, logging
-# import guestfs
+import guestfs
 
 class Configurator:
     def __init__(self):
@@ -17,7 +17,26 @@ class Configurator:
                 ' \'1024x768\' or \'800x600\' (without quotes)')
 
         self.args = self.parser.parse_args()
-
         self.log.debug('[%s] parsed command line arguments %s', self.__class__.__name__, self.args)
 
+        self.disk_image = self.args.disk_image
+
+
+def set_timeout(gfs, timeout):
+    etc_grub = gfs.cat("/etc/default/grub").strip()
+    print(etc_grub)
+
 config = Configurator()
+
+gfs = guestfs.GuestFS(python_return_dict=True)
+
+try:
+    gfs.add_drive(config.disk_image)
+except:
+    config.log.error('[HOST] can\'t open disk image %s', config.disk_image)
+    exit(1)
+
+gfs.launch()
+gfs.mount('/dev/sda2','/')
+
+set_timeout(gfs, 50)
