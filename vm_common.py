@@ -1,5 +1,7 @@
 import guestfs
 import logging
+import io, csv
+from collections import namedtuple
 
 class GuestFSDisk:
     def __init__(self, disk_path, log=None):
@@ -37,3 +39,23 @@ class GuestFSDisk:
             self.gfs.mount(partition, mountpoint)
             self.log.info('[GUEST] mounting partition %s : %s', mountpoint, partition)
 
+    @property
+    def users(self):
+        if not hasattr(self,'__users'):
+            User = namedtuple('User', ['uid','gid','home'])
+
+            etc_passwd = self.gfs.cat('/etc/passwd')
+            mem_file = io.StringIO(etc_passwd)
+            passwdreader = csv.reader(mem_file, delimiter=':')
+
+            self.__users = {}
+
+            for row in passwdreader:
+                username = row[0]
+                uid = int(row[2])
+                gid = int(row[3])
+                home = row[5]
+                if uid >= 1000:
+                    self.__users[username] = User(uid=uid, gid=gid, home=home)
+
+        return self.__users
