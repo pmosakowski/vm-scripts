@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse, logging
-import guestfs
+from vm_common import GuestFSDisk
 
 class Configurator:
     def __init__(self):
@@ -22,21 +22,12 @@ class Configurator:
         self.disk_image = self.args.disk_image
 
 
-def set_timeout(gfs, timeout):
-    etc_grub = gfs.cat("/etc/default/grub").strip()
+def set_timeout(gfs_disk, timeout):
+    etc_grub = gfs_disk.gfs.cat("/etc/default/grub").strip()
     print(etc_grub)
 
 config = Configurator()
 
-gfs = guestfs.GuestFS(python_return_dict=True)
+disk = GuestFSDisk(config.disk_image, config.log)
 
-try:
-    gfs.add_drive(config.disk_image)
-except:
-    config.log.error('[HOST] can\'t open disk image %s', config.disk_image)
-    exit(1)
-
-gfs.launch()
-gfs.mount('/dev/sda2','/')
-
-set_timeout(gfs, 50)
+set_timeout(disk, 50)
