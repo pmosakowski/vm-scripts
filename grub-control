@@ -21,7 +21,7 @@ class Configurator:
         self.parser = argparse.ArgumentParser(description='Alter GRUB2 options inside virtual machine image')
         self.parser.add_argument('disk_image', help='Name of disk image file to alter')
         self.parser.add_argument('-t', '--timeout', type=int, help='Set boot timeout in seconds,' \
-                ' in case of VMs it\'s handy to set it to 0')
+                ' in case of VMs it\'s handy to set it to 0', default=0)
         self.parser.add_argument('-g', '--gfx-mode', help='GFX_MODE for the console, e.g.' \
                 ' \'1024x768\' or \'800x600\' (without quotes)')
 
@@ -29,14 +29,19 @@ class Configurator:
         self.log.debug('[%s] parsed command line arguments %s', self.__class__.__name__, self.args)
 
         self.disk_image = self.args.disk_image
+        self.timeout = self.args.timeout
 
-
-def set_timeout(gfs_disk, timeout, config):
+def set_timeout(gfs_disk, timeout, log):
     gfs_disk.gfs.aug_init('/',AugOption.AUG_SAVE_BACKUP)
-    config.log.info('[GUEST] current GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
+    log.info('[GUEST] current GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
+
+    gfs_disk.gfs.aug_set('/files/etc/default/grub/GRUB_TIMEOUT ', str(timeout))
+    gfs_disk.gfs.aug_save()
+
+    log.info('[GUEST] new GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
 
 config = Configurator()
 
 disk = GuestFSDisk(config.disk_image, config.log)
 
-set_timeout(disk, 50, config)
+set_timeout(disk, config.timeout, config.log)
