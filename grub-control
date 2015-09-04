@@ -40,6 +40,12 @@ def set_timeout(gfs_disk, timeout, log):
 
     log.info('[GUEST] new GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
 
+    grub_mkconfig = gfs_disk.get_executable_path('grub2-mkconfig')
+    log.debug('[GUEST:%s] path to executable %s is %s', __name__, 'grub2-mkconfig', grub_mkconfig)
+
+    output = gfs_disk.gfs.command(['grub2-mkconfig','-o','/boot/grub2/grub.cfg'])
+    log.debug('[GUEST:%s] command output: %s', grub_mkconfig, output)
+
 config = Configurator()
 
 disk = GuestFSDisk(config.disk_image, config.log)
