@@ -1,6 +1,7 @@
 import guestfs
 import logging
 import io, csv
+import re
 from collections import namedtuple
 
 class GuestFSDisk:
@@ -61,3 +62,30 @@ class GuestFSDisk:
                     self.__users[username] = User(uid=uid, gid=gid, home=home)
 
             return self.__users
+
+    def get_executable_path(self, executable_name):
+        try:
+            return self.__executable_paths[executable_name]
+
+        except AttributeError:
+            self.__executable_paths = {}
+            self.__executable_paths[executable_name] = self.__find_executable(executable_name)
+            return self.__executable_paths[executable_name]
+
+        except KeyError:
+            self.__executable_paths[executable_name] = self.__find_executable(executable_name)
+            return self.__executable_paths[executable_name]
+
+    def __find_executable(self, executable_name):
+        name_regex = re.compile(r'^.+/{}$'.format(executable_name))
+
+        paths = ['/bin', '/usr/bin', '/sbin', '/usr/sbin']
+        files = []
+
+        for path in paths:
+            # need to prepend the search path, it is skipped in the output
+            files.extend([path + x for x in self.gfs.find(path)])
+        for executable_path in files:
+            if name_regex.match(executable_path):
+                self.log.debug('[GUEST:%s] found %i executables', self.__class__.__name__, len(files))
+                return executable_path
