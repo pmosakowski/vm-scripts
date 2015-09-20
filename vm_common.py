@@ -3,6 +3,15 @@ import logging
 import io, csv
 import re
 from collections import namedtuple
+from enum import IntEnum
+
+class AugOption(IntEnum):
+    AUG_SAVE_BACKUP = 1
+    AUG_SAVE_NEWFILE = 2
+    AUG_TYPE_CHECK = 4
+    AUG_NO_STDINC = 8
+    AUG_SAVE_NOOP = 16
+    AUG_NO_LOAD = 32
 
 class GuestFSDisk:
     def __init__(self, disk_path, log=None):
@@ -22,6 +31,7 @@ class GuestFSDisk:
 
         self.__inspect_fs()
         self.__mount_fs_tree(self.mountpoints)
+        self.gfs.aug_init('/',AugOption.AUG_SAVE_BACKUP)
     
     # gather information about filesystem layout
     def __inspect_fs(self):

@@ -2,15 +2,6 @@
 
 import argparse, logging
 from vm_common import GuestFSDisk
-from enum import IntEnum
-
-class AugOption(IntEnum):
-    AUG_SAVE_BACKUP = 1
-    AUG_SAVE_NEWFILE = 2
-    AUG_TYPE_CHECK = 4
-    AUG_NO_STDINC = 8
-    AUG_SAVE_NOOP = 16
-    AUG_NO_LOAD = 32
 
 class Configurator:
     def __init__(self):
@@ -32,7 +23,6 @@ class Configurator:
         self.timeout = self.args.timeout
 
 def set_timeout(gfs_disk, timeout, log):
-    gfs_disk.gfs.aug_init('/',AugOption.AUG_SAVE_BACKUP)
     log.info('[GUEST] current GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
 
     gfs_disk.gfs.aug_set('/files/etc/default/grub/GRUB_TIMEOUT ', str(timeout))
