@@ -21,6 +21,7 @@ class Configurator:
 
         self.disk_image = self.args.disk_image
         self.timeout = self.args.timeout
+        self.gfx_mode = self.args.gfx_mode
 
 def set_timeout(gfs_disk, timeout, log):
     log.info('[GUEST] current GRUB_TIMEOUT value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_TIMEOUT'))
@@ -36,8 +37,32 @@ def set_timeout(gfs_disk, timeout, log):
     output = gfs_disk.gfs.command(['grub2-mkconfig','-o','/boot/grub2/grub.cfg'])
     log.debug('[GUEST:%s] command output: %s', grub_mkconfig, output)
 
+def set_console_resolution(gfs_disk, resolution, log):
+    gfxmode = gfs_disk.gfs.aug_match('/files/etc/default/grub/GRUB_GFXMODE')
+    if len(gfxmode) == 1:
+        log.info('[GUEST] current GRUB_GFXMODE value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_GFXMODE'))
+    else:
+        log.info('[GUEST] GRUB_GFXMODE not set')
+
+    gfs_disk.gfs.aug_set('/files/etc/default/grub/GRUB_GFXMODE', str(resolution))
+    gfs_disk.gfs.aug_set('/files/etc/default/grub/GRUB_GFXPAYLOAD_LINUX', 'keep')
+    gfs_disk.gfs.aug_save()
+
+    log.info('[GUEST] new GRUB_GFXMODE value is %s', gfs_disk.gfs.aug_get('/files/etc/default/grub/GRUB_GFXMODE'))
+
+    grub_mkconfig = gfs_disk.get_executable_path('grub2-mkconfig')
+    log.debug('[GUEST:%s] path to executable %s is %s', __name__, 'grub2-mkconfig', grub_mkconfig)
+
+    # refreshing the grub.cfg file
+    output = gfs_disk.gfs.command(['grub2-mkconfig','-o','/boot/grub2/grub.cfg'])
+    log.debug('[GUEST:%s] command output: %s', grub_mkconfig, output)
+
 config = Configurator()
 
 disk = GuestFSDisk(config.disk_image, config.log)
 
-set_timeout(disk, config.timeout, config.log)
+if config.timeout:
+    set_timeout(disk, config.timeout, config.log)
+
+if config.gfx_mode:
+    set_console_resolution(disk, config.gfx_mode, config.log)
