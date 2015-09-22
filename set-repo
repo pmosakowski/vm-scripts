@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+from vm_common import GuestFSDisk
+from cmdline import Command
+
+class SetRepo(Command):
+    def __init__(self):
+        super(SetRepo, self).__init__('Set the baseurl variable in CentOS-Base.repo,' \
+                ' useful if you have created a local package cache')
+
+        self.add_argument('repo_url', help='new value of \'baseurl\' variable')
+        self.add_argument('disk_image', help='name of disk image to alter')
+        
+        self.parse_args()
+        self.disk_image = self.args.disk_image
+        self.repo_url = self.args.repo_url
+
+def set_repository_baseurl(disk, url, log):
+    pass
+
+cmd = SetRepo()
+
+disk = GuestFSDisk(cmd.disk_image, cmd.log)
+
+set_repository_baseurl(disk, cmd.repo_url, cmd.log)
