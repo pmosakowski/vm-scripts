@@ -2,6 +2,7 @@
 
 from vm_common import GuestFSDisk
 from cmdline import Command
+from os.path import basename, join
 
 class SetRepo(Command):
     def __init__(self):
@@ -16,7 +17,30 @@ class SetRepo(Command):
         self.repo_url = self.args.repo_url
 
 def set_repository_baseurl(disk, url, log):
-    pass
+    reponames = {
+            'base' : 'os',
+            'updates' : 'updates',
+            'extras' : 'extras',
+            'centosplus' : 'centosplus',
+            'contrib' : 'contrib',
+    }
+
+    paths = disk.gfs.aug_match('/files/etc/yum.repos.d/CentOS-Base.repo/*[label() != \'#comment\']')
+    print(paths)
+    repos = [(join(path,'baseurl'), reponames[basename(path)])
+            for path in paths]
+
+    url_template = '{url}/centos/$releasever/{repo}/$basearch/'
+
+    # add baseurl variable
+    for path, repo in repos:
+        disk.gfs.aug_set(path, url_template.format(url=url, repo=repo))
+
+    # remove mirrorlist variable
+    for path in paths:
+        disk.gfs.aug_rm(join(path,'mirrorlist'))
+
+    disk.gfs.aug_save()
 
 cmd = SetRepo()
 
