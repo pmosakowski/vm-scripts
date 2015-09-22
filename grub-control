@@ -57,8 +57,8 @@ cmd = GrubControl()
 
 disk = GuestFSDisk(cmd.disk_image, cmd.log)
 
-if config.timeout:
-    set_timeout(disk, config.timeout, config.log)
+if cmd.timeout != None:
+    set_timeout(disk, cmd.timeout, cmd.log)
 
-if config.gfx_mode:
-    set_console_resolution(disk, config.gfx_mode, config.log)
+if cmd.gfx_mode != None:
+    set_console_resolution(disk, cmd.gfx_mode, cmd.log)
