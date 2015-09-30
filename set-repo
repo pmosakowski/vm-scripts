@@ -3,6 +3,7 @@
 from vm_common import GuestFSDisk
 from cmdline import Command
 from os.path import basename, join
+import re
 
 class SetRepo(Command):
     def __init__(self):
@@ -14,7 +15,7 @@ class SetRepo(Command):
         
         self.parse_args()
         self.disk_image = self.args.disk_image
-        self.repo_url = self.args.repo_url
+        self.repo_url = clean_up_url(self.args.repo_url)
 
 def set_repository_baseurl(disk, url, log):
     reponames = {
@@ -74,6 +75,21 @@ def set_epel_repository_baseurl(disk, url, log):
         disk.gfs.aug_save()
     else:
         self.info("EPEL repository is not enabled on guest")
+
+def append_protocol(url):
+    protocol = re.match(r'https?://', url)
+    if protocol:
+        return url
+    else:
+        return 'http://' + url
+
+def clean_up_url(url):
+    url.strip()
+
+    if url[-1] == '/':
+        url = url[:-1]
+
+    return append_protocol(url)
 
 cmd = SetRepo()
 
