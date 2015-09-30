@@ -42,8 +42,35 @@ def set_repository_baseurl(disk, url, log):
 
     disk.gfs.aug_save()
 
+def set_epel_repository_baseurl(disk, url, log):
+    reponames = {
+            'epel'              : '$basearch',
+            'epel-debuginfo'    : '$basearch/debug',
+            'epel-source'       : 'SRPMS',
+    }
+
+    if (disk.gfs.is_file("/etc/yum.repos.d/epel.repo")):
+        paths = disk.gfs.aug_match('/files/etc/yum.repos.d/epel.repo/*[label() != \'#comment\']')
+        repos = [(join(path,'baseurl'), reponames[basename(path)])
+                for path in paths]
+
+        url_template = '{url}/fedora/epel/7/{repo}'
+
+        # add baseurl variable
+        for path, repo in repos:
+            disk.gfs.aug_set(path, url_template.format(url=url, repo=repo))
+
+        # remove mirrorlist variable
+        for path in paths:
+            disk.gfs.aug_rm(join(path,'mirrorlist'))
+
+        disk.gfs.aug_save()
+    else:
+        self.info("EPEL repository is not enabled on guest")
+
 cmd = SetRepo()
 
 disk = GuestFSDisk(cmd.disk_image, cmd.log)
 
 set_repository_baseurl(disk, cmd.repo_url, cmd.log)
+set_epel_repository_baseurl(disk, cmd.repo_url, cmd.log)
