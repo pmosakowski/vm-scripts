@@ -26,15 +26,18 @@ def set_repository_baseurl(disk, url, log):
     }
 
     paths = disk.gfs.aug_match('/files/etc/yum.repos.d/CentOS-Base.repo/*[label() != \'#comment\']')
-    print(paths)
-    repos = [(join(path,'baseurl'), reponames[basename(path)])
+    log.debug("Variable paths that will be altered {}".format(paths))
+
+    repos = [(join(path,'baseurl'), reponames[basename(path)], basename(path))
             for path in paths]
 
     url_template = '{url}/centos/$releasever/{repo}/$basearch/'
 
     # add baseurl variable
-    for path, repo in repos:
-        disk.gfs.aug_set(path, url_template.format(url=url, repo=repo))
+    for path, repo, section in repos:
+        baseurl = url_template.format(url=url, repo=repo)
+        log.debug("setting url {url} for section [{section}]".format(url=baseurl,section=section))
+        disk.gfs.aug_set(path, baseurl)
 
     # remove mirrorlist variable
     for path in paths:
@@ -51,14 +54,18 @@ def set_epel_repository_baseurl(disk, url, log):
 
     if (disk.gfs.is_file("/etc/yum.repos.d/epel.repo")):
         paths = disk.gfs.aug_match('/files/etc/yum.repos.d/epel.repo/*[label() != \'#comment\']')
-        repos = [(join(path,'baseurl'), reponames[basename(path)])
+        log.debug("Variable paths that will be altered {}".format(paths))
+
+        repos = [(join(path,'baseurl'), reponames[basename(path)], basename(path))
                 for path in paths]
 
         url_template = '{url}/fedora/epel/7/{repo}'
 
         # add baseurl variable
-        for path, repo in repos:
-            disk.gfs.aug_set(path, url_template.format(url=url, repo=repo))
+        for path, repo, section in repos:
+            baseurl = url_template.format(url=url, repo=repo)
+            log.debug("setting url {url} for section [{section}]".format(url=baseurl,section=section))
+            disk.gfs.aug_set(path, baseurl)
 
         # remove mirrorlist variable
         for path in paths:
