@@ -74,7 +74,7 @@ def set_epel_repository_baseurl(disk, url, log):
 
         disk.gfs.aug_save()
     else:
-        self.info("EPEL repository is not enabled on guest")
+        log.info("EPEL repository is not enabled on guest")
 
 def append_protocol(url):
     protocol = re.match(r'https?://', url)
